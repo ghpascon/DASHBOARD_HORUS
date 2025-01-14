@@ -3,3 +3,5 @@ streamlit-authenticator==0.3.1
 bcrypt==3.2.0
 pandas
 pytz
+mysqlclient
+SQLAlchemy

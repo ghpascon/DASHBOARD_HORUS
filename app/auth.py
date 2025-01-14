@@ -1,59 +1,65 @@
 import streamlit as st
 import streamlit_authenticator as stauth
-def autenticacao():
-    # Dados de usuário e senha
-    usernames = ['usuario1', 'usuario2']
-    passwords = ['senha123', 'senha456']
-    names = ['João', 'Maria']
+from app import mysql_utils
 
-    # Gerando hashes das senhas
-    hashed_passwords = stauth.Hasher(passwords).generate()
-    credentials = {
+
+def autenticacao():
+    users_data = mysql_utils.get_users()
+    print(users_data)
+    # Cria a estrutura de credenciais do streamlit-authenticator
+    credentials_dict = {
         "usernames": {
-            usernames[0]: {
-                "name": names[0],
-                "password": hashed_passwords[0]
-            },
-            usernames[1]: {
-                "name": names[1],
-                "password": hashed_passwords[1]
+            st.secrets['master']['username']: {
+                "name": st.secrets['master']['name'],
+                "password": st.secrets['master']['password'],
+                "email": st.secrets['master']['email'],
+                "roles": ["admin"],
             }
         }
     }
 
-    # Configuração do autenticador
+    # # # Adiciona outros usuários da base de dados
+    for user in users_data:
+        username = user[1]
+        credentials_dict["usernames"][username] = {
+            "name": user[0],
+            "password": user[2],
+            "email": user[3],
+            "roles": user[4],  # Define a role como "user" para usuários normais
+        }
+
+    # Configura o autenticador
     authenticator = stauth.Authenticate(
-        credentials=credentials,
-        cookie_name="my_cookie", 
-        key="my_signature_key", 
-        cookie_expiry_days=30
+        credentials=credentials_dict,
+        cookie_name=st.secrets['cookie']['name'],
+        key="my_signature_key",
+        cookie_expiry_days=30,
     )
 
-    
-    # Função para exibir a página de login
+    # Função de login
     def login():
-        # Mostrando o formulário de login
-        name, authentication_status, username = authenticator.login('main',fields={'username': 'Username', 'password': 'Password', 'Login':'Entrar'})
-        
-        # Verificando se o login foi bem-sucedido
-        if authentication_status:
-            # st.success(f'Bem-vindo {name}!')
-            return True,name
-        elif authentication_status is False:
-            st.error('Nome de usuário ou senha incorretos.')
-        return False,None
+        # name, authentication_status, username = 
+        authenticator.login(
+            "main",
+            fields={"username": "Username", "password": "Password", "Login": "Entrar"},
+            clear_on_submit=True,
+        )
+        return st.session_state["name"], st.session_state['authentication_status']
 
-    # Exibindo conteúdo protegido ou página de login
-    login_sts, name_logged_in = login()
-    if login_sts:
-        return name_logged_in, authenticator
-    else:
-        st.stop() 
+    # Função de logout
+    def logout(name):
+        st.sidebar.write(f"Logado como: {name}")
+        authenticator.logout("Logout", "sidebar")
 
-def logout(authenticator, name):
-    st.sidebar.write('Logado: ' + name)
-    if st.sidebar.button('Logout'):
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        authenticator._implement_logout()
-        st.rerun()    
+    # Fluxo principal de autenticação
+    name, authentication_status = login()
+
+    if authentication_status:
+        logout(name)
+        return name  # Retorna o nome do usuário autenticado
+    elif authentication_status is False:
+        st.error("Nome de usuário ou senha incorretos.")
+    elif authentication_status is None:
+        st.warning("Por favor, insira seu nome de usuário e senha.")
+
+    return None  # Retorna None se a autenticação não for bem-sucedida

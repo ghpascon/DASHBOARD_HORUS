@@ -1,7 +1,6 @@
-import json
+import streamlit as st
 import pandas as pd
 import pytz
-
 
 def get_df(cdr_log):
     df_data = []
@@ -12,10 +11,8 @@ def get_df(cdr_log):
 
     return pd.DataFrame(df_data)
 
-def get_data(path):
-    with open(path, "r", encoding="utf-8") as json_file:
-        config = json.load(json_file)  # Carrega o JSON como um dicionário
-        file_path = config['cdr_path']
+def get_data():
+    file_path = st.secrets['cdr']['cdr_path']
 
     cdr_log = []
     with open(file_path, "r", encoding="utf-8") as arquivo:
